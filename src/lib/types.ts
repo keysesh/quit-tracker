@@ -13,10 +13,16 @@ export interface Craving {
   intensity: number;
 }
 
+export interface Relapse {
+  id: string;
+  timestamp: string;
+}
+
 export interface QuitProfile {
   quitDate: string;
-  cigarettesPerDay: number;
-  costPerPack: number;
-  cigarettesPerPack: number;
+  bowlsPerDay: number;
+  costPerPouch: number;
+  bowlsPerPouch: number;
   cravings: Craving[];
+  relapses: Relapse[];
 }

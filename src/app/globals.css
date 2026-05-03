@@ -35,6 +35,11 @@ body {
   100% { opacity: 0.5; }
 }
 
+@keyframes celebrate {
+  0%, 100% { box-shadow: 0 0 15px rgba(45,212,191,0.15); }
+  50% { box-shadow: 0 0 30px rgba(45,212,191,0.25); }
+}
+
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
