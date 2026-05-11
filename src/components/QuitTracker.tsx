@@ -407,6 +407,23 @@ export default function QuitTracker() {
     return () => clearInterval(id);
   }, [profile]);
 
+  const completedCount = profile
+    ? getMilestoneStatus((now.getTime() - new Date(profile.quitDate).getTime()) / 60000).completed
+    : 0;
+
+  useEffect(() => {
+    if (!profile) return;
+    if (prevCompletedRef.current === null) {
+      prevCompletedRef.current = completedCount;
+    } else if (completedCount > prevCompletedRef.current) {
+      const justReached = milestones[completedCount - 1];
+      setCelebratingMs(justReached);
+      const timer = setTimeout(() => setCelebratingMs(null), 5000);
+      prevCompletedRef.current = completedCount;
+      return () => clearTimeout(timer);
+    }
+  }, [completedCount, profile]);
+
   if (!loaded) return <div className="min-h-screen bg-[#07070B]" />;
 
   const handleStart = () => {
@@ -551,18 +568,6 @@ export default function QuitTracker() {
   const time = formatElapsed(elapsed);
   const elapsedMin = elapsed / 60000;
   const { nextIndex, next: nextMs, progress, completed } = getMilestoneStatus(elapsedMin);
-
-  useEffect(() => {
-    if (prevCompletedRef.current === null) {
-      prevCompletedRef.current = completed;
-    } else if (completed > prevCompletedRef.current) {
-      const justReached = milestones[completed - 1];
-      setCelebratingMs(justReached);
-      const timer = setTimeout(() => setCelebratingMs(null), 5000);
-      prevCompletedRef.current = completed;
-      return () => clearTimeout(timer);
-    }
-  }, [completed]);
 
   const elapsedDays = elapsed / 86400000;
   const bowlsAvoided = Math.floor(elapsedDays * profile.bowlsPerDay);
