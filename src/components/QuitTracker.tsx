@@ -424,7 +424,64 @@ export default function QuitTracker() {
     }
   }, [completedCount, profile]);
 
-  if (!loaded) return <div className="min-h-screen bg-[#07070B]" />;
+  if (!loaded) return (
+    <div className="min-h-screen bg-[#07070B] flex flex-col">
+      <div className="max-w-md mx-auto w-full flex flex-col min-h-screen">
+        <header className="flex items-center px-6 pb-1"
+          style={{ paddingTop: 'max(1.25rem, env(safe-area-inset-top))' }}>
+          <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">
+            CLEAR
+          </h1>
+        </header>
+        <main className="flex-1 px-6 pb-28 space-y-6">
+          <section className="pt-6 pb-2 text-center">
+            <div className="flex items-baseline justify-center gap-1">
+              {[3, 2.8, 2.8, 2.8].map((w, i) => (
+                <div key={i} className="flex flex-col items-center" style={{ minWidth: `${w}rem` }}>
+                  <div className="h-10 w-11 rounded-lg bg-white/[0.04] animate-pulse" />
+                  <div className="h-1.5 w-6 rounded bg-white/[0.03] mt-2" />
+                </div>
+              ))}
+            </div>
+            <div className="h-2 w-24 rounded bg-white/[0.03] mx-auto mt-5" />
+          </section>
+          <section>
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5">
+              <div className="flex items-center gap-4">
+                <div className="w-[76px] h-[76px] rounded-full bg-white/[0.04] animate-pulse flex-shrink-0" />
+                <div className="flex-1 space-y-2.5">
+                  <div className="h-2 w-20 rounded bg-white/[0.04]" />
+                  <div className="h-4 w-36 rounded bg-white/[0.04] animate-pulse" />
+                  <div className="h-2.5 w-28 rounded bg-white/[0.03]" />
+                </div>
+              </div>
+            </div>
+          </section>
+          <section className="grid grid-cols-3 gap-2.5">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3.5 text-center">
+                <div className="h-6 w-12 rounded bg-white/[0.04] mx-auto animate-pulse" />
+                <div className="h-1.5 w-16 rounded bg-white/[0.03] mx-auto mt-2" />
+              </div>
+            ))}
+          </section>
+          <section>
+            <div className="h-2 w-16 rounded bg-white/[0.03] mb-3" />
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5">
+              <div className="grid grid-cols-3 gap-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="text-center">
+                    <div className="h-5 w-10 rounded bg-white/[0.04] mx-auto animate-pulse" />
+                    <div className="h-1.5 w-12 rounded bg-white/[0.03] mx-auto mt-2" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  );
 
   const handleStart = () => {
     setProfile({
@@ -502,8 +559,8 @@ export default function QuitTracker() {
     return (
       <div className="min-h-screen bg-[#07070B] flex flex-col items-center justify-center p-6 relative overflow-hidden"
         style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
-        <div className="absolute top-1/3 left-1/2 w-[400px] h-[400px] rounded-full bg-teal-400/[0.03] pointer-events-none"
-          style={{ animation: 'breathe 6s ease-in-out infinite' }} />
+        <div className="absolute top-1/3 left-1/2 w-[400px] h-[400px] pointer-events-none"
+          style={{ background: 'radial-gradient(circle at center, rgba(45,212,191,0.04) 0%, transparent 65%)', animation: 'breathe 6s ease-in-out infinite' }} />
 
         <div className="text-center mb-10" style={{ animation: 'fadeIn 0.6s ease-out' }}>
           <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">
@@ -512,7 +569,7 @@ export default function QuitTracker() {
           <p className="text-white/35 mt-3 text-sm tracking-wide">Quit the tobacco. Keep the ritual.</p>
         </div>
 
-        <div className="w-full max-w-sm bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-3xl p-7 space-y-5"
+        <div className="w-full max-w-sm bg-white/[0.03] border border-white/[0.06] rounded-3xl p-7 space-y-5"
           style={{ animation: 'fadeIn 0.6s ease-out 0.15s both' }}>
 
           <div>
@@ -613,7 +670,8 @@ export default function QuitTracker() {
 
   return (
     <div className="min-h-screen bg-[#07070B] flex flex-col relative">
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[500px] h-[350px] bg-teal-400/[0.025] rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[500px] h-[350px] pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse at center, rgba(45,212,191,0.03) 0%, transparent 70%)' }} />
 
       <div className="max-w-md mx-auto w-full flex flex-col min-h-screen relative z-10">
         {/* Header */}
@@ -662,14 +720,14 @@ export default function QuitTracker() {
           {/* Celebration / Next Milestone */}
           <section style={{ animation: 'fadeIn 0.5s ease-out 0.1s both' }}>
             {celebratingMs ? (
-              <div className="bg-teal-400/[0.06] backdrop-blur-xl border border-teal-400/20 rounded-2xl p-5 text-center"
+              <div className="bg-teal-400/[0.06] border border-teal-400/20 rounded-2xl p-5 text-center"
                 style={{ animation: 'celebrate 2s ease-in-out infinite' }}>
                 <p className="text-[9px] uppercase tracking-[0.2em] text-teal-400 font-medium">Milestone reached</p>
                 <p className="text-[17px] font-semibold text-white mt-2">{celebratingMs.title}</p>
                 <p className="text-[11px] text-white/30 mt-2 max-w-[280px] mx-auto">{celebratingMs.description}</p>
               </div>
             ) : nextMs ? (
-              <div className="bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5">
+              <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5">
                 <div className="flex items-center gap-4">
                   <ProgressRing progress={progress} />
                   <div className="min-w-0 flex-1">
@@ -682,7 +740,7 @@ export default function QuitTracker() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6 text-center">
+              <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6 text-center">
                 <p className="text-teal-400 font-semibold">Every milestone reached</p>
                 <p className="text-xs text-white/25 mt-1">Your body has fully recovered.</p>
               </div>
@@ -696,7 +754,7 @@ export default function QuitTracker() {
               { v: formatMoney(saved), l: 'saved', c: 'text-emerald-400' },
               { v: formatDuration(minSaved), l: 'time back', c: 'text-cyan-400' },
             ] as const).map(s => (
-              <div key={s.l} className="bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-xl p-3.5 text-center">
+              <div key={s.l} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3.5 text-center">
                 <p className={`text-xl font-bold tabular-nums ${s.c}`}>{s.v}</p>
                 <p className="text-[8px] uppercase tracking-[0.15em] text-white/20 mt-1.5">{s.l}</p>
               </div>
@@ -706,7 +764,7 @@ export default function QuitTracker() {
           {/* Progress Card (replaces Recent) */}
           <section style={{ animation: 'fadeIn 0.5s ease-out 0.25s both' }}>
             <h2 className="text-[10px] uppercase tracking-[0.2em] text-white/25 font-medium mb-3">Progress</h2>
-            <div className="bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5">
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5">
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
                   <p className="text-lg font-bold text-white tabular-nums">{formatGap(prog.sinceLastCraving)}</p>
@@ -744,7 +802,7 @@ export default function QuitTracker() {
               </div>
             </div>
 
-            <div className="bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5">
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5">
               <div className="flex items-baseline justify-between mb-4">
                 <div>
                   <span className="text-xl font-bold text-amber-400 tabular-nums">{todayCravings.length}</span>
