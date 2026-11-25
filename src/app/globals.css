@@ -1,22 +1,84 @@
 @import "tailwindcss";
 
+/* ── Semantic tokens ──────────────────────────────────────────
+   Light is the default. Dark is opt-in via [data-theme="dark"] on
+   <html>. Every color in the app references one of these, so the
+   whole surface re-themes from here. */
+
+:root {
+  --canvas: #EEF3F4;
+  --canvas-2: #F7FAFA;
+  --surface: #FFFFFF;
+  --surface-2: #E7EEEF;
+  --line: rgba(13, 47, 56, 0.10);
+  --ink: #102A31;
+  --muted: #46636B;
+  --faint: #85A0A8;
+  --accent: #0C9488;
+  --accent-2: #0891B2;
+  --on-accent: #FFFFFF;
+  --warn: #C2740A;
+  --good: #059669;
+  --danger: #DC2846;
+  --ring-track: rgba(13, 47, 56, 0.08);
+  --glow: rgba(12, 148, 136, 0.14);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --canvas: #0B1417;
+  --canvas-2: #0E1A1E;
+  --surface: rgba(255, 255, 255, 0.045);
+  --surface-2: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.09);
+  --ink: #EAF3F3;
+  --muted: rgba(234, 243, 243, 0.62);
+  --faint: rgba(234, 243, 243, 0.34);
+  --accent: #2DD4BF;
+  --accent-2: #22D3EE;
+  --on-accent: #07141A;
+  --warn: #FBBF24;
+  --good: #34D399;
+  --danger: #FB7185;
+  --ring-track: rgba(255, 255, 255, 0.06);
+  --glow: rgba(45, 212, 191, 0.24);
+  color-scheme: dark;
+}
+
 @theme inline {
-  --color-background: #07070B;
-  --color-foreground: #EEEEF0;
+  --color-canvas: var(--canvas);
+  --color-canvas-2: var(--canvas-2);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-warn: var(--warn);
+  --color-good: var(--good);
+  --color-danger: var(--danger);
+  --font-display: var(--font-space-grotesk);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 html {
-  color-scheme: dark;
+  background: var(--canvas);
 }
 
 body {
-  background: #07070B;
-  color: #EEEEF0;
+  background: var(--canvas);
+  color: var(--ink);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.btn-primary {
+  background-image: linear-gradient(to right, var(--accent), var(--accent-2));
+  color: var(--on-accent);
 }
 
 @keyframes fadeIn {
@@ -25,8 +87,8 @@ body {
 }
 
 @keyframes breathe {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.03; }
-  50% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.06; }
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+  50% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
 }
 
 @keyframes shimmer {
@@ -36,8 +98,31 @@ body {
 }
 
 @keyframes celebrate {
-  0%, 100% { box-shadow: 0 0 15px rgba(45,212,191,0.15); }
-  50% { box-shadow: 0 0 30px rgba(45,212,191,0.25); }
+  0%, 100% { box-shadow: 0 0 18px var(--glow); }
+  50% { box-shadow: 0 0 34px var(--glow); }
+}
+
+/* Distraction game */
+@keyframes targetIn {
+  0% { transform: scale(0.2); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes burst {
+  0% { transform: scale(0.4); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes floatUp {
+  0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(-50%, -34px) scale(1.1); opacity: 0; }
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -53,4 +138,12 @@ input[type="number"] {
 ::-webkit-scrollbar {
   width: 0;
   background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
