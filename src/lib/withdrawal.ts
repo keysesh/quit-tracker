@@ -20,6 +20,8 @@ export interface Symptom {
   /** Something practical that helps. */
   helps: string;
   source: string;
+  /** Only applies to smoked tobacco. */
+  smokeOnly?: boolean;
 }
 
 const D = 24;
@@ -77,7 +79,7 @@ export const SYMPTOMS: Symptom[] = [
   },
   {
     id: 'dizzy', name: 'Dizziness', kind: 'body', startH: 12, peakH: 1.5 * D, endH: 4 * D,
-    why: 'Your brain is getting more oxygen than it is used to now that carbon monoxide is clearing.',
+    why: 'Your body is adjusting to the drop in nicotine, and for smokers to the extra oxygen now that carbon monoxide is clearing.',
     helps: 'Stand up slowly and sit down until it passes. It usually lasts only a day or two.',
     source: 'NHS',
   },
@@ -94,7 +96,7 @@ export const SYMPTOMS: Symptom[] = [
     source: 'NHS / Hughes 2007',
   },
   {
-    id: 'cough', name: 'Coughing or sore throat', kind: 'body', startH: 2 * D, peakH: 10 * D, endH: 35 * D,
+    id: 'cough', name: 'Coughing or sore throat', kind: 'body', startH: 2 * D, peakH: 10 * D, endH: 35 * D, smokeOnly: true,
     why: 'The tiny hairs in your airways are waking up and pushing out built-up mucus. A sign of healing.',
     helps: 'Warm drinks, honey, and plenty of water. See a doctor if it lasts beyond a month or you cough blood.',
     source: 'NHS / American Cancer Society',

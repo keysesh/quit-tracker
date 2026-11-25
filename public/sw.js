@@ -2,7 +2,7 @@
 // App shell + static assets are cached so the app opens with no connection.
 // User data lives in localStorage, so it's already fully offline.
 
-const CACHE = 'clear-v1';
+const CACHE = 'clear-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -25,6 +25,8 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  // Never cache API responses (calendar files etc.).
+  if (url.pathname.startsWith('/api/')) return;
 
   // Navigations: network-first, fall back to the cached shell when offline.
   if (req.mode === 'navigate') {
@@ -32,8 +34,11 @@ self.addEventListener('fetch', (event) => {
       (async () => {
         try {
           const net = await fetch(req);
-          const cache = await caches.open(CACHE);
-          cache.put('/', net.clone());
+          // Only the app page itself is the offline shell.
+          if (url.pathname === '/' && net.ok) {
+            const cache = await caches.open(CACHE);
+            cache.put('/', net.clone());
+          }
           return net;
         } catch {
           return (await caches.match('/')) || Response.error();

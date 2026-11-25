@@ -1,14 +1,20 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { milestones } from '../lib/milestones';
+import { milestonesFor } from '../lib/milestones';
+import { PRODUCTS, PRODUCT_ORDER, unitWord, freeWord } from '../lib/products';
+import type { Product, ProductInfo } from '../lib/products';
+import { exportBackup, parseBackup, requestPersistentStorage } from '../lib/backup';
+import { peakCravingHour, formatHour } from '../lib/patterns';
+import SupportSheet from './SupportSheet';
+import Patterns from './Patterns';
 import {
   TRIGGERS,
   CRAVING_FEELINGS,
   FEELINGS_BEFORE,
   FEELINGS_AFTER,
 } from '../lib/types';
-import type { QuitProfile, Craving, Relapse, SymptomLog } from '../lib/types';
+import type { QuitProfile, Craving, Relapse, SymptomLog, Milestone } from '../lib/types';
 import { SYMPTOMS, symptomNow, withdrawalPhase, formatHoursShort } from '../lib/withdrawal';
 import type { SymptomKind, SymptomStage } from '../lib/withdrawal';
 
@@ -60,13 +66,13 @@ function timeAgo(timestamp: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-function getMilestoneStatus(elapsedMin: number) {
-  let idx = milestones.length;
-  for (let i = 0; i < milestones.length; i++) {
-    if (elapsedMin < milestones[i].minutes) { idx = i; break; }
+function getMilestoneStatus(elapsedMin: number, list: Milestone[]) {
+  let idx = list.length;
+  for (let i = 0; i < list.length; i++) {
+    if (elapsedMin < list[i].minutes) { idx = i; break; }
   }
-  const next = idx < milestones.length ? milestones[idx] : null;
-  const prev = idx > 0 ? milestones[idx - 1] : null;
+  const next = idx < list.length ? list[idx] : null;
+  const prev = idx > 0 ? list[idx - 1] : null;
   const start = prev ? prev.minutes : 0;
   const range = next ? next.minutes - start : 1;
   const progress = next ? Math.min(1, (elapsedMin - start) / range) : 1;
@@ -103,8 +109,14 @@ function formatMilestoneWhen(reachTime: Date) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function migrateProfile(data: any): QuitProfile {
+  const product: Product = data.product && data.product in PRODUCTS
+    ? data.product
+    : data.cigarettesPerDay ? 'cigarettes' : 'bowls';
   return {
     quitDate: data.quitDate,
+    product,
+    minutesPerUnit: typeof data.minutesPerUnit === 'number' ? data.minutesPerUnit : PRODUCTS[product].minutes,
+    lastBackup: data.lastBackup,
     bowlsPerDay: data.bowlsPerDay ?? data.cigarettesPerDay ?? 10,
     costPerPouch: data.costPerPouch ?? data.costPerPack ?? 12,
     bowlsPerPouch: data.bowlsPerPouch ?? data.cigarettesPerPack ?? 30,
@@ -447,12 +459,13 @@ function HourlyChart({ cravings, onDelete }: { cravings: Craving[]; onDelete?: (
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const row = el.querySelector('[data-current]');
-    if (row) row.scrollIntoView({ block: 'center', behavior: 'auto' });
+    // Scroll only the chart's own box to the current hour; scrollIntoView would move the whole page.
+    const row = el.querySelector<HTMLElement>('[data-current]');
+    if (row) el.scrollTop = row.offsetTop - el.clientHeight / 2 + row.clientHeight / 2;
   }, []);
 
   return (
-    <div ref={scrollRef} className="max-h-[340px] overflow-y-auto -mx-1 px-1 space-y-0">
+    <div ref={scrollRef} className="relative max-h-[340px] overflow-y-auto -mx-1 px-1 space-y-0">
       {hours.map(h => {
         const isCurrent = h.hour === currentHour;
         const isPast = h.hour < currentHour;
@@ -491,7 +504,7 @@ function HourlyChart({ cravings, onDelete }: { cravings: Craving[]; onDelete?: (
                           <span className="text-[11px] text-muted tabular-nums flex items-center gap-1.5">
                             {formatCravingTime(c.timestamp)}
                             {c.distracted && (
-                              <span className="text-[9px] text-accent" title="Rode it out">◆</span>
+                              <span className="text-[10px] text-accent" title="Rode it out">◆</span>
                             )}
                           </span>
                           <div className="flex items-center gap-2">
@@ -621,7 +634,9 @@ const SEVERITY = [
   { v: 3, l: 'Rough' },
 ];
 
-function WithdrawalGuide({ hours, logs, onLog, onDelete }: {
+function WithdrawalGuide({ hours, logs, onLog, onDelete, smoked, onSupport }: {
+  smoked: boolean;
+  onSupport: () => void;
   hours: number;
   logs: SymptomLog[];
   onLog: (symptomId: string, severity: number) => void;
@@ -636,7 +651,7 @@ function WithdrawalGuide({ hours, logs, onLog, onDelete }: {
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const todayLogs = logs.filter(l => new Date(l.timestamp) >= todayStart);
 
-  const rows = SYMPTOMS.filter(s => s.kind === kind).map(s => ({ s, ...symptomNow(s, hours) }));
+  const rows = SYMPTOMS.filter(s => s.kind === kind && (smoked || !s.smokeOnly)).map(s => ({ s, ...symptomNow(s, hours) }));
   const order: Record<SymptomStage, number> = { peak: 0, starting: 1, easing: 2, later: 3, passed: 4 };
   const active = rows.filter(r => r.stage !== 'passed')
     .sort((a, b) => order[a.stage] - order[b.stage] || b.level - a.level || a.s.startH - b.s.startH);
@@ -743,13 +758,14 @@ function WithdrawalGuide({ hours, logs, onLog, onDelete }: {
       )}
       <p className="text-[10px] text-faint mt-3 leading-relaxed">
         Typical timings. Everyone is different. Chest pain, trouble breathing, or low mood that feels heavy are reasons to see a doctor.
+        {' '}<button onClick={onSupport} className="text-accent underline-offset-2 underline">Get support</button>
       </p>
     </div>
   );
 }
 
 // ── Recent slips: shows the granular relapse detail back to you ──
-function RelapseList({ relapses, onDelete }: { relapses: Relapse[]; onDelete: (id: string) => void }) {
+function RelapseList({ relapses, onDelete, product }: { relapses: Relapse[]; onDelete: (id: string) => void; product: ProductInfo }) {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const sorted = [...relapses].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 6);
   return (
@@ -762,7 +778,7 @@ function RelapseList({ relapses, onDelete }: { relapses: Relapse[]; onDelete: (i
               <div className="flex items-baseline gap-2">
                 <span className="text-[13px] font-medium text-ink">{timeAgo(r.timestamp)}</span>
                 {typeof r.amount === 'number' && (
-                  <span className="text-[11px] text-muted">· {r.amount} {r.amount === 1 ? 'bowl' : 'bowls'}</span>
+                  <span className="text-[11px] text-muted">· {r.amount} {unitWord(product, r.amount)}</span>
                 )}
               </div>
               {confirmId === r.id ? (
@@ -828,20 +844,32 @@ export default function QuitTracker() {
   const [relWhen, setRelWhen] = useState(''); // '' = just now; else datetime-local value
   const [slipSummary, setSlipSummary] = useState<null | { prevStreakMs: number; bestMs: number; affectsTimer: boolean; hadPrior: boolean }>(null);
 
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [headsupDismissed, setHeadsupDismissed] = useState(false);
+  const [backupMsg, setBackupMsg] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState<QuitProfile | null>(null);
+  const [checkinTime, setCheckinTime] = useState('21:00');
+
+  const [formProduct, setFormProduct] = useState<Product>('bowls');
   const [formDate, setFormDate] = useState('');
-  const [formBowls, setFormBowls] = useState(10);
-  const [formCost, setFormCost] = useState(12);
-  const [formPerPouch, setFormPerPouch] = useState(30);
+  const [formBowls, setFormBowls] = useState(PRODUCTS.bowls.perDay);
+  const [formCost, setFormCost] = useState(PRODUCTS.bowls.cost);
+  const [formPerPouch, setFormPerPouch] = useState(PRODUCTS.bowls.perContainer);
 
   const [editDate, setEditDate] = useState('');
   const [editBowls, setEditBowls] = useState(10);
   const [editCost, setEditCost] = useState(12);
   const [editPerPouch, setEditPerPouch] = useState(30);
+  const [editProduct, setEditProduct] = useState<Product>('bowls');
+  const [editMinutes, setEditMinutes] = useState(7);
 
-  const [celebratingMs, setCelebratingMs] = useState<typeof milestones[0] | null>(null);
+  const [celebratingMs, setCelebratingMs] = useState<Milestone | null>(null);
   const prevCompletedRef = useRef<number | null>(null);
 
+  // Reading localStorage has to wait for the client, so the first render is the skeleton.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    requestPersistentStorage();
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) setProfile(migrateProfile(JSON.parse(saved)));
@@ -867,6 +895,7 @@ export default function QuitTracker() {
       }
     } catch { /* empty */ }
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (profile) localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
@@ -892,8 +921,9 @@ export default function QuitTracker() {
     });
   };
 
+  const msList = milestonesFor(profile ? PRODUCTS[profile.product].smoked : true);
   const completedCount = profile
-    ? getMilestoneStatus((now.getTime() - getStreakStart(profile)) / 60000).completed
+    ? getMilestoneStatus((now.getTime() - getStreakStart(profile)) / 60000, msList).completed
     : 0;
 
   useEffect(() => {
@@ -901,7 +931,7 @@ export default function QuitTracker() {
     if (prevCompletedRef.current === null) {
       prevCompletedRef.current = completedCount;
     } else if (completedCount > prevCompletedRef.current) {
-      const justReached = milestones[completedCount - 1];
+      const justReached = msList[completedCount - 1];
       setCelebratingMs(justReached);
       const timer = setTimeout(() => setCelebratingMs(null), 5000);
       prevCompletedRef.current = completedCount;
@@ -911,7 +941,7 @@ export default function QuitTracker() {
       prevCompletedRef.current = completedCount;
       setCelebratingMs(null);
     }
-  }, [completedCount, profile]);
+  }, [completedCount, profile, msList]);
 
   const toggle = (list: string[], setter: (v: string[]) => void, val: string) => {
     setter(list.includes(val) ? list.filter(x => x !== val) : [...list, val]);
@@ -955,6 +985,8 @@ export default function QuitTracker() {
   const handleStart = () => {
     setProfile({
       quitDate: formDate ? new Date(formDate).toISOString() : new Date().toISOString(),
+      product: formProduct,
+      minutesPerUnit: PRODUCTS[formProduct].minutes,
       bowlsPerDay: formBowls,
       costPerPouch: formCost,
       bowlsPerPouch: formPerPouch,
@@ -962,6 +994,53 @@ export default function QuitTracker() {
       relapses: [],
       symptoms: [],
     });
+  };
+
+  const pickFormProduct = (p: Product) => {
+    setFormProduct(p);
+    setFormBowls(PRODUCTS[p].perDay);
+    setFormCost(PRODUCTS[p].cost);
+    setFormPerPouch(PRODUCTS[p].perContainer);
+  };
+
+  const pickEditProduct = (p: Product) => {
+    if (p === editProduct) return;
+    setEditProduct(p);
+    setEditBowls(PRODUCTS[p].perDay);
+    setEditCost(PRODUCTS[p].cost);
+    setEditPerPouch(PRODUCTS[p].perContainer);
+    setEditMinutes(PRODUCTS[p].minutes);
+  };
+
+  const doExport = async () => {
+    if (!profile) return;
+    try {
+      const r = await exportBackup(profile);
+      if (r === 'cancelled') return;
+      setProfile({ ...profile, lastBackup: new Date().toISOString() });
+      setBackupMsg(r === 'shared' ? 'Backup saved.' : 'Backup downloaded. Keep it somewhere safe.');
+    } catch {
+      setBackupMsg('Couldn’t create the backup on this device.');
+    }
+  };
+
+  const onImportFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const parsed = migrateProfile(parseBackup(await file.text()));
+      setPendingImport(parsed);
+      setBackupMsg(null);
+    } catch (e) {
+      setPendingImport(null);
+      setBackupMsg((e as Error).message);
+    }
+  };
+
+  const confirmImport = () => {
+    if (!pendingImport) return;
+    setProfile(pendingImport);
+    setPendingImport(null);
+    setSettingsSheet(false);
   };
 
   const handleQuitNow = () => {
@@ -1066,7 +1145,11 @@ export default function QuitTracker() {
       setEditBowls(profile.bowlsPerDay);
       setEditCost(profile.costPerPouch);
       setEditPerPouch(profile.bowlsPerPouch);
+      setEditProduct(profile.product);
+      setEditMinutes(profile.minutesPerUnit);
     }
+    setBackupMsg(null);
+    setPendingImport(null);
     setConfirmReset(false);
     setSettingsSheet(true);
   };
@@ -1076,6 +1159,8 @@ export default function QuitTracker() {
     setProfile({
       ...profile,
       quitDate: editDate ? new Date(editDate).toISOString() : profile.quitDate,
+      product: editProduct,
+      minutesPerUnit: editMinutes,
       bowlsPerDay: editBowls,
       costPerPouch: editCost,
       bowlsPerPouch: editPerPouch,
@@ -1088,9 +1173,10 @@ export default function QuitTracker() {
     setProfile(null);
     setSettingsSheet(false);
     setConfirmReset(false);
-    setFormDate(''); setFormBowls(10); setFormCost(12); setFormPerPouch(30);
+    setFormDate(''); pickFormProduct('bowls');
   };
 
+  const num = (v: string, min: number) => Math.max(min, Number(v) || min);
   const inputClass = 'w-full bg-surface-2 border border-line rounded-xl px-4 py-3 text-ink text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/30 transition-all placeholder:text-faint';
 
   // ── ONBOARDING ──────────────────────────────────────────────
@@ -1116,7 +1202,7 @@ export default function QuitTracker() {
           <h1 className="font-display text-5xl font-bold tracking-tight bg-gradient-to-r from-accent to-accent-2 bg-clip-text text-transparent">
             CLEAR
           </h1>
-          <p className="text-muted mt-3 text-sm tracking-wide">Your private companion for staying tobacco-free.</p>
+          <p className="text-muted mt-3 text-sm tracking-wide">Your private companion for quitting tobacco and nicotine.</p>
         </div>
 
         <div className="w-full max-w-sm bg-surface border border-line rounded-3xl p-7 space-y-5 shadow-xl shadow-black/[0.03] relative"
@@ -1133,26 +1219,36 @@ export default function QuitTracker() {
           </div>
 
           <div>
-            <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">Tobacco bowls per day</label>
-            <input type="number" value={formBowls} min={1} max={100}
-              onChange={e => setFormBowls(Math.max(1, Number(e.target.value) || 1))} className={inputClass} />
+            <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">What are you quitting?</label>
+            <div className="flex flex-wrap gap-2">
+              {PRODUCT_ORDER.map(p => (
+                <Chip key={p} active={formProduct === p} onClick={() => pickFormProduct(p)}>{PRODUCTS[p].label}</Chip>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">{PRODUCTS[formProduct].units} per day</label>
+            <input type="number" value={formBowls} min={0.5} max={200} step="any" inputMode="decimal"
+              onChange={e => setFormBowls(num(e.target.value, 0.5))} className={inputClass} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">Cost / pouch</label>
+              <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">Cost / {PRODUCTS[formProduct].container}</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-faint text-sm">$</span>
-                <input type="number" value={formCost} min={1} step={0.5}
-                  onChange={e => setFormCost(Math.max(1, Number(e.target.value) || 1))} className={inputClass + ' pl-8'} />
+                <input type="number" value={formCost} min={0.5} step="any" inputMode="decimal"
+                  onChange={e => setFormCost(num(e.target.value, 0.5))} className={inputClass + ' pl-8'} />
               </div>
             </div>
             <div>
-              <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">Bowls / pouch</label>
-              <input type="number" value={formPerPouch} min={1}
-                onChange={e => setFormPerPouch(Math.max(1, Number(e.target.value) || 1))} className={inputClass} />
+              <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">{PRODUCTS[formProduct].units} / {PRODUCTS[formProduct].container}</label>
+              <input type="number" value={formPerPouch} min={1} inputMode="numeric"
+                onChange={e => setFormPerPouch(num(e.target.value, 1))} className={inputClass} />
             </div>
           </div>
+          {PRODUCTS[formProduct].hint && <p className="text-[11px] text-faint -mt-2">{PRODUCTS[formProduct].hint}</p>}
 
           <button onClick={handleStart}
             className="btn-primary w-full py-3.5 rounded-xl font-semibold text-sm hover:shadow-lg hover:shadow-accent/20 active:scale-[0.98] transition-all mt-1">
@@ -1170,13 +1266,25 @@ export default function QuitTracker() {
   const time = formatElapsed(elapsed);
   const elapsedMin = elapsed / 60000;
   const elapsedHours = elapsed / 3600000;
-  const { nextIndex, next: nextMs, progress, completed } = getMilestoneStatus(elapsedMin);
+  const { nextIndex, next: nextMs, progress, completed } = getMilestoneStatus(elapsedMin, msList);
+  const product = PRODUCTS[profile.product];
+  const free = freeWord(product);
+  const peakHour = peakCravingHour(profile.cravings);
+  const hourNow = now.getHours();
+  const showHeadsup = peakHour !== null && !headsupDismissed && (hourNow === peakHour || hourNow === (peakHour + 23) % 24);
+  const localYmd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const [ciH, ciM] = checkinTime.split(':').map(Number);
+  const calUrl = {
+    milestones: `/api/calendar?kind=milestones&start=${streakStart}&smoked=${product.smoked ? 1 : 0}`,
+    checkin: `/api/calendar?kind=checkin&hour=${ciH || 0}&minute=${ciM || 0}&date=${localYmd}`,
+    headsup: peakHour !== null ? `/api/calendar?kind=headsup&hour=${peakHour}&date=${localYmd}` : null,
+  };
 
   const journeyMs = now.getTime() - new Date(profile.quitDate).getTime();
   const elapsedDays = Math.max(0, journeyMs) / 86400000;
   const bowlsAvoided = Math.max(0, Math.floor(elapsedDays * profile.bowlsPerDay) - prog.bowlsSmoked);
   const saved = (bowlsAvoided / profile.bowlsPerPouch) * profile.costPerPouch;
-  const minSaved = bowlsAvoided * 7;
+  const minSaved = bowlsAvoided * profile.minutesPerUnit;
 
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const todayCravings = profile.cravings.filter(c => new Date(c.timestamp) >= todayStart);
@@ -1184,7 +1292,7 @@ export default function QuitTracker() {
   const remaining = nextMs ? nextMs.minutes - elapsedMin : 0;
   const quitTime = streakStart;
 
-  const milestonesWithTime = milestones.map((m, i) => ({ ...m, idx: i, reachTime: new Date(quitTime + m.minutes * 60000) }));
+  const milestonesWithTime = msList.map((m, i) => ({ ...m, idx: i, reachTime: new Date(quitTime + m.minutes * 60000) }));
   const nextMsTime = nextMs ? new Date(quitTime + nextMs.minutes * 60000) : null;
   const visibleMilestones = showAll
     ? milestonesWithTime
@@ -1223,6 +1331,10 @@ export default function QuitTracker() {
             CLEAR
           </h1>
           <div className="flex items-center gap-1">
+            <button onClick={() => setSupportOpen(true)}
+              className="px-2.5 py-1.5 mr-1 rounded-full border border-line text-[12px] text-muted hover:text-ink transition-colors" aria-label="Get support">
+              Support
+            </button>
             <button onClick={toggleTheme}
               className="p-2 text-muted hover:text-ink transition-colors" aria-label="Toggle theme">
               {theme === 'dark' ? (
@@ -1255,13 +1367,13 @@ export default function QuitTracker() {
                     <span className="font-mono text-[2.5rem] font-bold tabular-nums tracking-tighter text-ink leading-none">
                       {i === 0 ? u.v : pad(u.v)}
                     </span>
-                    <span className="text-[8px] uppercase tracking-[0.2em] text-faint mt-1.5">{u.l}</span>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-faint mt-1.5">{u.l}</span>
                   </div>
                 </div>
               ))}
             </div>
             <p className="text-[10px] text-accent tracking-[0.25em] uppercase mt-5 font-medium">
-              {prog.totalRelapses > 0 ? 'tobacco-free since last slip' : 'tobacco-free'}
+              {prog.totalRelapses > 0 ? `${free} since last slip` : free}
             </p>
             {prog.totalRelapses > 0 && (
               <p className="text-[11px] text-faint mt-1.5">
@@ -1272,6 +1384,18 @@ export default function QuitTracker() {
               </p>
             )}
           </section>
+
+          {showHeadsup && peakHour !== null && (
+            <section className="bg-warn/10 border border-warn/30 rounded-2xl p-4 flex items-start gap-3" style={{ animation: 'fadeIn 0.4s ease-out' }}>
+              <div className="flex-1">
+                <p className="text-[13px] font-medium text-ink">Your craving hour is around {formatHour(peakHour)}</p>
+                <p className="text-[12px] text-muted mt-1 leading-relaxed">Have something ready: water, a walk, gum, or tap + to ride it out.</p>
+              </div>
+              <button onClick={() => setHeadsupDismissed(true)} className="p-1 text-faint hover:text-ink" aria-label="Dismiss">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </section>
+          )}
 
           {/* Celebration / Next Milestone */}
           <section style={{ animation: 'fadeIn 0.5s ease-out 0.1s both' }}>
@@ -1298,21 +1422,21 @@ export default function QuitTracker() {
             ) : (
               <div className="bg-surface border border-line rounded-2xl p-6 text-center">
                 <p className="text-accent font-semibold">Every milestone reached</p>
-                <p className="text-xs text-muted mt-1">Your body has fully recovered.</p>
+                <p className="text-xs text-muted mt-1">Your health risks are now close to someone who never used tobacco.</p>
               </div>
             )}
           </section>
 
           {/* Stats */}
-          <section className="grid grid-cols-3 gap-2.5" style={{ animation: 'fadeIn 0.5s ease-out 0.2s both' }}>
-            {([
-              { v: bowlsAvoided.toLocaleString(), l: 'bowls skipped', c: 'text-accent' },
+          <section className={`grid ${profile.minutesPerUnit > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-2.5`} style={{ animation: 'fadeIn 0.5s ease-out 0.2s both' }}>
+            {[
+              { v: bowlsAvoided.toLocaleString(), l: `${product.units} skipped`, c: 'text-accent' },
               { v: formatMoney(saved), l: 'saved', c: 'text-good' },
-              { v: formatDuration(minSaved), l: 'time back', c: 'text-accent-2' },
-            ] as const).map(s => (
+              ...(profile.minutesPerUnit > 0 ? [{ v: formatDuration(minSaved), l: 'time back', c: 'text-accent-2' }] : []),
+            ].map(s => (
               <div key={s.l} className="bg-surface border border-line rounded-xl p-3.5 text-center">
                 <p className={`text-xl font-bold tabular-nums ${s.c}`}>{s.v}</p>
-                <p className="text-[9px] uppercase tracking-[0.12em] text-muted mt-1.5">{s.l}</p>
+                <p className="text-[10px] uppercase tracking-[0.12em] text-muted mt-1.5">{s.l}</p>
               </div>
             ))}
           </section>
@@ -1320,7 +1444,8 @@ export default function QuitTracker() {
           {/* Withdrawal: body + mind */}
           <section style={{ animation: 'fadeIn 0.5s ease-out 0.22s both' }}>
             <h2 className="text-[11px] uppercase tracking-[0.2em] text-muted font-medium mb-3">How you might feel</h2>
-            <WithdrawalGuide hours={elapsedHours} logs={profile.symptoms} onLog={logSymptom} onDelete={deleteSymptom} />
+            <WithdrawalGuide hours={elapsedHours} logs={profile.symptoms} onLog={logSymptom} onDelete={deleteSymptom}
+              smoked={product.smoked} onSupport={() => setSupportOpen(true)} />
           </section>
 
           {/* Progress Card */}
@@ -1330,15 +1455,15 @@ export default function QuitTracker() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
                   <p className="text-lg font-bold text-ink tabular-nums">{formatGap(prog.sinceLastCraving)}</p>
-                  <p className="text-[9px] uppercase tracking-[0.1em] text-muted mt-1">since craving</p>
+                  <p className="text-[10px] uppercase tracking-[0.1em] text-muted mt-1">since craving</p>
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-bold text-accent tabular-nums">{formatGap(prog.bestStreak)}</p>
-                  <p className="text-[9px] uppercase tracking-[0.1em] text-muted mt-1">best streak</p>
+                  <p className="text-[10px] uppercase tracking-[0.1em] text-muted mt-1">best streak</p>
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-bold text-accent-2 tabular-nums">{prog.cleanDays}<span className="text-faint font-normal text-sm">/{prog.totalDays}</span></p>
-                  <p className="text-[9px] uppercase tracking-[0.1em] text-muted mt-1">smoke-free days</p>
+                  <p className="text-[10px] uppercase tracking-[0.1em] text-muted mt-1">smoke-free days</p>
                 </div>
               </div>
               {cravingPattern && (
@@ -1347,6 +1472,12 @@ export default function QuitTracker() {
                 </p>
               )}
             </div>
+          </section>
+
+          {/* Patterns */}
+          <section style={{ animation: 'fadeIn 0.5s ease-out 0.28s both' }}>
+            <h2 className="text-[11px] uppercase tracking-[0.2em] text-muted font-medium mb-3">Patterns</h2>
+            <Patterns cravings={profile.cravings} relapses={profile.relapses} symptoms={profile.symptoms} now={now} />
           </section>
 
           {/* Craving Timeline */}
@@ -1400,7 +1531,7 @@ export default function QuitTracker() {
                   <span className="text-[11px] text-muted">most common: <span className="text-warn">{relapsePattern.toLowerCase()}</span></span>
                 )}
               </div>
-              <RelapseList relapses={profile.relapses} onDelete={deleteRelapse} />
+              <RelapseList relapses={profile.relapses} onDelete={deleteRelapse} product={product} />
             </section>
           )}
 
@@ -1408,7 +1539,7 @@ export default function QuitTracker() {
           <section style={{ animation: 'fadeIn 0.5s ease-out 0.35s both' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-[11px] uppercase tracking-[0.2em] text-muted font-medium">
-                Milestones · {completed}/{milestones.length}
+                Milestones · {completed}/{msList.length}
               </h2>
               <button onClick={() => setShowAll(!showAll)} className="text-[11px] text-accent hover:opacity-80 transition-opacity">
                 {showAll ? 'Show less' : 'See all'}
@@ -1463,11 +1594,11 @@ export default function QuitTracker() {
                           <span className={`text-[11px] tabular-nums font-medium ${done ? 'text-muted' : current ? 'text-accent' : 'text-faint'}`}>
                             {formatClockTime(m.reachTime)}
                           </span>
-                          <span className="text-[9px] text-faint">{m.label}</span>
+                          <span className="text-[10px] text-faint">{m.label}</span>
                         </div>
                         <p className={`text-sm font-medium mt-0.5 ${current ? 'text-accent' : 'text-ink'}`}>{m.title}</p>
                         <p className="text-[12px] text-muted mt-1 leading-relaxed max-w-[280px]">{m.description}</p>
-                        <p className="text-[9px] text-faint mt-1.5 uppercase tracking-wider">{m.source}</p>
+                        <p className="text-[10px] text-faint mt-1.5 uppercase tracking-wider">{m.source}</p>
                       </div>
                     </div>
                   </div>
@@ -1557,7 +1688,7 @@ export default function QuitTracker() {
                   </p>
                 )}
                 <p className="text-[12px] text-faint mt-2 max-w-[290px] mx-auto leading-relaxed">
-                  {bowlsAvoided > 0 ? `${bowlsAvoided.toLocaleString()} bowls skipped overall still count. ` : ''}
+                  {bowlsAvoided > 0 ? `${bowlsAvoided.toLocaleString()} ${product.units} skipped overall still count. ` : ''}
                   Withdrawal is shorter after a short slip, and the next few hours matter most.
                 </p>
                 <div className="flex gap-2 mt-6">
@@ -1570,6 +1701,9 @@ export default function QuitTracker() {
                     Start again now
                   </button>
                 </div>
+                <button onClick={() => { resetSheet(); setSupportOpen(true); }} className="text-[12px] text-accent mt-4">
+                  Want help staying quit? See support options
+                </button>
               </div>
             ) : gameOn ? (
               <RideItOut onComplete={() => logCraving(true)} onQuit={() => logCraving(true)} />
@@ -1590,7 +1724,7 @@ export default function QuitTracker() {
                 {flow === 'craving' ? (
                   <div style={{ animation: 'popIn 0.2s ease-out' }}>
                     <div className="text-center mb-5">
-                      <p className="text-[12px] text-muted">{formatDuration(elapsedMin)} tobacco-free · {lastCravingText}</p>
+                      <p className="text-[12px] text-muted">{formatDuration(elapsedMin)} {free} · {lastCravingText}</p>
                     </div>
 
                     <h3 className="text-center text-[15px] font-medium text-ink mb-5">How strong is it?</h3>
@@ -1672,7 +1806,7 @@ export default function QuitTracker() {
                     <p className="text-[11px] text-faint mb-5">Your timer restarts from this time. Your history and money saved stay.</p>
 
                     {/* amount */}
-                    <p className="text-[11px] uppercase tracking-[0.12em] text-muted mb-2">How many bowls?</p>
+                    <p className="text-[11px] uppercase tracking-[0.12em] text-muted mb-2">How many {product.units}?</p>
                     <div className="flex items-center justify-center gap-5 mb-5">
                       <button onClick={() => setRelAmount(a => Math.max(1, a - 1))}
                         className="w-11 h-11 rounded-full bg-surface-2 border border-line text-ink text-xl font-medium active:scale-90 transition-transform">−</button>
@@ -1727,6 +1861,8 @@ export default function QuitTracker() {
         </div>
       </div>
 
+      <SupportSheet open={supportOpen} onClose={() => setSupportOpen(false)} product={product} />
+
       {/* Settings Sheet */}
       <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${settingsSheet ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <div className="absolute inset-0 bg-black/50" onClick={() => { setSettingsSheet(false); setConfirmReset(false); }} />
@@ -1743,25 +1879,103 @@ export default function QuitTracker() {
                 {editPreview && <p className="text-[10px] text-faint mt-1.5">{editPreview}</p>}
               </div>
               <div>
-                <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">Tobacco bowls per day</label>
-                <input type="number" value={editBowls} min={1} max={100}
-                  onChange={e => setEditBowls(Math.max(1, Number(e.target.value) || 1))} className={inputClass} />
+                <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">What you&apos;re quitting</label>
+                <div className="flex flex-wrap gap-2">
+                  {PRODUCT_ORDER.map(p => (
+                    <Chip key={p} active={editProduct === p} onClick={() => pickEditProduct(p)}>{PRODUCTS[p].label}</Chip>
+                  ))}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">Cost / pouch</label>
+                  <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">{PRODUCTS[editProduct].units} per day</label>
+                  <input type="number" value={editBowls} min={0.5} max={200} step="any" inputMode="decimal"
+                    onChange={e => setEditBowls(num(e.target.value, 0.5))} className={inputClass} />
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">Minutes each</label>
+                  <input type="number" value={editMinutes} min={0} max={240} inputMode="numeric"
+                    onChange={e => setEditMinutes(Math.max(0, Number(e.target.value) || 0))} className={inputClass} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">Cost / {PRODUCTS[editProduct].container}</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-faint text-sm">$</span>
-                    <input type="number" value={editCost} min={1} step={0.5}
-                      onChange={e => setEditCost(Math.max(1, Number(e.target.value) || 1))} className={inputClass + ' pl-8'} />
+                    <input type="number" value={editCost} min={0.5} step="any" inputMode="decimal"
+                      onChange={e => setEditCost(num(e.target.value, 0.5))} className={inputClass + ' pl-8'} />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">Bowls / pouch</label>
-                  <input type="number" value={editPerPouch} min={1}
-                    onChange={e => setEditPerPouch(Math.max(1, Number(e.target.value) || 1))} className={inputClass} />
+                  <label className="text-[11px] uppercase tracking-[0.15em] text-muted mb-2 block">{PRODUCTS[editProduct].units} / {PRODUCTS[editProduct].container}</label>
+                  <input type="number" value={editPerPouch} min={1} inputMode="numeric"
+                    onChange={e => setEditPerPouch(num(e.target.value, 1))} className={inputClass} />
                 </div>
               </div>
+              {PRODUCTS[editProduct].hint && <p className="text-[11px] text-faint">{PRODUCTS[editProduct].hint}</p>}
+              <p className="text-[11px] text-faint">&ldquo;Minutes each&rdquo; feeds the time-back number. Set 0 to hide it.</p>
+            </div>
+
+            {/* Reminders */}
+            <div className="mb-6">
+              <p className="text-[11px] uppercase tracking-[0.15em] text-muted mb-1">Reminders</p>
+              <p className="text-[12px] text-faint mb-3 leading-relaxed">Adds alerts to your phone&apos;s calendar. Nothing is stored on a server.</p>
+              <div className="space-y-2">
+                <a href={calUrl.milestones} target="_blank" rel="noopener"
+                  className="block w-full py-3 px-4 rounded-xl bg-surface border border-line text-[13px] text-ink">
+                  Alert me at my next milestones
+                </a>
+                <div className="flex gap-2">
+                  <a href={calUrl.checkin} target="_blank" rel="noopener"
+                    className="flex-1 py-3 px-4 rounded-xl bg-surface border border-line text-[13px] text-ink">
+                    Daily check-in at
+                  </a>
+                  <input type="time" value={checkinTime} onChange={e => setCheckinTime(e.target.value || '21:00')}
+                    aria-label="Daily check-in time" className={inputClass + ' !w-32'} />
+                </div>
+                {calUrl.headsup && peakHour !== null && (
+                  <a href={calUrl.headsup} target="_blank" rel="noopener"
+                    className="block w-full py-3 px-4 rounded-xl bg-surface border border-line text-[13px] text-ink">
+                    Daily heads-up before my craving hour ({formatHour(peakHour)})
+                  </a>
+                )}
+              </div>
+              <p className="text-[11px] text-faint mt-2">Milestone alerts use your current streak. Add them again after a slip.</p>
+            </div>
+
+            {/* Backup */}
+            <div className="mb-6">
+              <p className="text-[11px] uppercase tracking-[0.15em] text-muted mb-1">Backup</p>
+              <p className={`text-[12px] mb-3 leading-relaxed ${profile.lastBackup ? 'text-faint' : 'text-warn'}`}>
+                {profile.lastBackup
+                  ? `Last backup ${new Date(profile.lastBackup).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. Your data only lives on this device.`
+                  : 'No backup yet. Your data only lives on this device. Clearing browser data or switching phones would lose it.'}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={doExport}
+                  className="py-3 rounded-xl bg-surface border border-line text-[13px] text-ink active:scale-[0.98] transition-transform">
+                  Save a backup
+                </button>
+                <label className="py-3 rounded-xl bg-surface border border-line text-[13px] text-ink text-center cursor-pointer active:scale-[0.98] transition-transform">
+                  Restore
+                  <input type="file" accept="application/json,.json" className="hidden"
+                    onChange={e => { onImportFile(e.target.files?.[0]); e.target.value = ''; }} />
+                </label>
+              </div>
+              {backupMsg && <p className="text-[12px] text-muted mt-2">{backupMsg}</p>}
+              {pendingImport && (
+                <div className="bg-warn/10 border border-warn/30 rounded-xl p-3.5 mt-3">
+                  <p className="text-[12px] text-ink leading-relaxed">
+                    Replace everything here with this backup? It started {new Date(pendingImport.quitDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} and
+                    has {pendingImport.cravings.length} {pendingImport.cravings.length === 1 ? 'craving' : 'cravings'}, {pendingImport.relapses.length} {pendingImport.relapses.length === 1 ? 'slip' : 'slips'} and {pendingImport.symptoms.length} {pendingImport.symptoms.length === 1 ? 'check-in' : 'check-ins'}.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <button onClick={() => setPendingImport(null)} className="py-2.5 rounded-lg bg-surface-2 border border-line text-muted text-sm">Cancel</button>
+                    <button onClick={confirmImport} className="py-2.5 rounded-lg bg-warn/20 border border-warn/40 text-ink text-sm font-medium">Replace</button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2.5">

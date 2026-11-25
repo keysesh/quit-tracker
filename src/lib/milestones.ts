@@ -1,319 +1,119 @@
 import { Milestone } from "./types";
 
+// Recovery milestones after the last use. Kept to claims the cited bodies actually make;
+// "smokeOnly" milestones (carbon monoxide, lungs, smoking-disease risk) are hidden for
+// vapes and nicotine pouches, where they don't apply.
+// Sources: NHS Better Health "Quit smoking: what happens when you quit", CDC "Benefits of
+// Quitting", American Cancer Society "Benefits of Quitting Smoking Over Time",
+// Benowitz 2009 (nicotine half-life ~2h), Cosgrove et al. 2009 Arch Gen Psychiatry
+// (nicotine receptor levels normalize 6–12 weeks after quitting).
+
 export const milestones: Milestone[] = [
   {
-    minutes: 20,
-    label: "20 minutes",
-    title: "Heart rate drops",
-    description:
-      "Your heart rate and blood pressure begin to drop back toward normal levels.",
-    category: "cardiovascular",
-    source: "American Heart Association",
+    minutes: 20, label: "20 minutes", title: "Heart rate drops",
+    description: "Your heart rate and blood pressure start coming down toward normal.",
+    category: "cardiovascular", source: "American Cancer Society",
   },
   {
-    minutes: 60,
-    label: "1 hour",
-    title: "Nicotine half-life begins",
-    description:
-      "Nicotine's half-life is about 2 hours. Your body is already breaking it down. You may feel the first pull to smoke — that's withdrawal starting.",
-    category: "neurological",
-    source: "National Institutes of Health",
+    minutes: 120, label: "2 hours", title: "Nicotine halved",
+    description: "Nicotine's half-life is about two hours, so half of it is already gone. The first cravings usually show up around now. They mean withdrawal has started, not that something is wrong.",
+    category: "metabolic", source: "Benowitz 2009",
   },
   {
-    minutes: 120,
-    label: "2 hours",
-    title: "Peripheral circulation improves",
-    description:
-      "Heart rate returns to near-normal. Blood flow to your hands and feet increases. Nicotine cravings are likely hitting now.",
-    category: "cardiovascular",
-    source: "American Heart Association",
+    minutes: 240, label: "4 hours", title: "First withdrawal wave",
+    description: "Irritability, restlessness and trouble focusing can start now. Each wave lasts minutes, not hours.",
+    category: "neurological", source: "NHS",
   },
   {
-    minutes: 240,
-    label: "4 hours",
-    title: "First withdrawal wave",
-    description:
-      "Blood nicotine has dropped below half its peak level. Irritability, anxiety, and difficulty concentrating may begin. This is your body starting to recalibrate.",
-    category: "neurological",
-    source: "National Institutes of Health",
+    minutes: 480, label: "8 hours", title: "Nicotine down over 90%",
+    description: "After four half-lives, more than 90% of the nicotine in your blood is gone.",
+    category: "metabolic", source: "Benowitz 2009",
   },
   {
-    minutes: 360,
-    label: "6 hours",
-    title: "Heart rate fully normalized",
-    description:
-      "Your resting heart rate has returned to a non-smoker baseline. Anxiety may feel intense right now — it peaks early and will ease.",
-    category: "cardiovascular",
-    source: "American Heart Association",
+    minutes: 481, label: "8 hours", title: "Oxygen recovering", smokeOnly: true,
+    description: "Carbon monoxide in your blood has halved and your oxygen levels are returning to normal.",
+    category: "respiratory", source: "NHS",
   },
   {
-    minutes: 480,
-    label: "8 hours",
-    title: "Nicotine drops by 90%",
-    description:
-      "Nicotine levels in your bloodstream have fallen by over 90%. You may feel restless or irritable — this is your body recalibrating.",
-    category: "metabolic",
-    source: "National Institutes of Health",
+    minutes: 720, label: "12 hours", title: "Carbon monoxide back to normal", smokeOnly: true,
+    description: "The carbon monoxide level in your blood drops to normal, so your blood carries oxygen properly again.",
+    category: "respiratory", source: "CDC",
   },
   {
-    minutes: 600,
-    label: "10 hours",
-    title: "Oral circulation recovering",
-    description:
-      "Blood flow to your gums and teeth is returning to normal levels. Healing of oral tissue has begun.",
-    category: "cardiovascular",
-    source: "American Dental Association",
+    minutes: 2880, label: "48 hours", title: "Taste and smell sharpening",
+    description: "Damaged nerve endings start to regrow, so taste and smell begin to improve. Food may start tasting different.",
+    category: "neurological", source: "American Cancer Society",
   },
   {
-    minutes: 720,
-    label: "12 hours",
-    title: "Oxygen levels normalize",
-    description:
-      "Carbon monoxide levels in your blood drop to normal. Your blood oxygen levels rise, and your organs begin receiving better oxygen supply.",
-    category: "respiratory",
-    source: "World Health Organization",
+    minutes: 2881, label: "48 hours", title: "Lungs clearing out", smokeOnly: true,
+    description: "Carbon monoxide is gone and your lungs are clearing out mucus and debris. Coughing more is a sign they're cleaning house.",
+    category: "respiratory", source: "NHS",
   },
   {
-    minutes: 960,
-    label: "16 hours",
-    title: "Blood sugar stabilizing",
-    description:
-      "Insulin function is beginning to improve as nicotine clears. Blood glucose regulation is normalizing. You may notice changes in appetite.",
-    category: "metabolic",
-    source: "National Institutes of Health",
+    minutes: 4320, label: "3 days", title: "Nicotine out of your system",
+    description: "Nicotine is gone from your body. Withdrawal usually peaks around now and eases from here. You're on the far side of the hardest stretch.",
+    category: "neurological", source: "NHS / Smokefree.gov",
   },
   {
-    minutes: 1080,
-    label: "18 hours",
-    title: "Carbon monoxide halved",
-    description:
-      "CO levels have dropped to roughly half of peak smoking exposure. Oxygen delivery to your heart, brain, and muscles continues to improve.",
-    category: "respiratory",
-    source: "World Health Organization",
+    minutes: 4321, label: "3 days", title: "Breathing gets easier", smokeOnly: true,
+    description: "Your bronchial tubes relax and energy starts to come back. A deep breath gets easier.",
+    category: "respiratory", source: "NHS",
   },
   {
-    minutes: 1200,
-    label: "20 hours",
-    title: "Airways beginning to clear",
-    description:
-      "Excess mucus production is starting to slow down. Your bronchial passages are beginning to relax and open. You might cough more — that's your lungs cleaning house.",
-    category: "respiratory",
-    source: "American Cancer Society",
+    minutes: 10080, label: "1 week", title: "Cravings start to ease",
+    description: "For most people cravings are now less frequent and shorter, and come mostly from cues like coffee, meals or stress.",
+    category: "neurological", source: "Smokefree.gov",
   },
   {
-    minutes: 1440,
-    label: "24 hours",
-    title: "Heart attack risk decreases",
-    description:
-      "Your risk of heart attack begins to decline. Your body is clearing toxins and your cardiovascular system is already benefiting.",
-    category: "cardiovascular",
-    source: "American Heart Association",
+    minutes: 20160, label: "2 weeks", title: "Circulation improving",
+    description: "Between 2 and 12 weeks, blood flow improves throughout your body. Walking and exercise start to feel easier.",
+    category: "cardiovascular", source: "NHS / CDC",
   },
   {
-    minutes: 1800,
-    label: "30 hours",
-    title: "Bronchial lining repairing",
-    description:
-      "The damaged lining of your bronchial tubes is beginning to repair. Your cough reflex may increase — this is a sign of healing, not damage.",
-    category: "respiratory",
-    source: "American Cancer Society",
+    minutes: 40320, label: "4 weeks", title: "Withdrawal mostly over",
+    description: "Most withdrawal symptoms have passed by now. The NHS says people who make it to 28 days are five times more likely to stay quit for good.",
+    category: "neurological", source: "NHS",
   },
   {
-    minutes: 2160,
-    label: "36 hours",
-    title: "Carbon monoxide fully cleared",
-    description:
-      "Carbon monoxide has been entirely eliminated from your bloodstream. Your lungs are starting to clear out mucus and debris.",
-    category: "respiratory",
-    source: "World Health Organization",
+    minutes: 60480, label: "6 weeks", title: "Brain receptors resetting",
+    description: "Over 6 to 12 weeks, the extra nicotine receptors your brain grew drop back toward non-smoker levels. The chemical pull is fading.",
+    category: "neurological", source: "Cosgrove et al. 2009",
   },
   {
-    minutes: 2520,
-    label: "42 hours",
-    title: "Taste buds waking up",
-    description:
-      "Your sense of taste is beginning to sharpen. Food may start to taste different — often richer and more complex. Smell is improving too.",
-    category: "neurological",
-    source: "American Cancer Society",
+    minutes: 129600, label: "3 months", title: "Lung function improving", smokeOnly: true,
+    description: "Lung function measurably improves. Climbing stairs and exercising get easier.",
+    category: "respiratory", source: "CDC",
   },
   {
-    minutes: 2880,
-    label: "48 hours",
-    title: "Nerve endings regrow",
-    description:
-      "Damaged nerve endings begin to regrow. Your senses of taste and smell start to noticeably improve.",
-    category: "neurological",
-    source: "American Cancer Society",
+    minutes: 388800, label: "9 months", title: "Coughing and breathlessness ease", smokeOnly: true,
+    description: "Coughing, wheezing and shortness of breath have decreased. The tiny hairs that clean your lungs work properly again, so you get fewer infections.",
+    category: "respiratory", source: "American Cancer Society",
   },
   {
-    minutes: 3240,
-    label: "54 hours",
-    title: "Nicotine fully eliminated",
-    description:
-      "All nicotine and its primary metabolite cotinine have been cleared from your bloodstream. Your body is now running entirely on its own chemistry.",
-    category: "metabolic",
-    source: "National Institutes of Health",
+    minutes: 525600, label: "1 year", title: "Heart disease risk halved", smokeOnly: true,
+    description: "Your risk of coronary heart disease is about half that of someone who still smokes.",
+    category: "cardiovascular", source: "American Cancer Society",
   },
   {
-    minutes: 3600,
-    label: "60 hours",
-    title: "Peak cravings subside",
-    description:
-      "The most intense withdrawal period begins to ease. Craving episodes start to shorten and become less frequent.",
-    category: "neurological",
-    source: "National Institutes of Health",
+    minutes: 2628000, label: "5 years", title: "Several cancer risks halved", smokeOnly: true,
+    description: "Your risk of cancers of the mouth, throat, esophagus and bladder is cut in half. Stroke risk can now match a non-smoker's.",
+    category: "cancer", source: "American Cancer Society",
   },
   {
-    minutes: 3960,
-    label: "66 hours",
-    title: "Sleep patterns improving",
-    description:
-      "REM sleep is beginning to normalize. You may notice deeper, more restorative sleep. Nicotine's disruption of your sleep architecture is fading.",
-    category: "neurological",
-    source: "National Institutes of Health",
+    minutes: 5256000, label: "10 years", title: "Lung cancer risk halved", smokeOnly: true,
+    description: "Your risk of dying from lung cancer is about half that of a person who still smokes. Kidney and larynx cancer risk drops too.",
+    category: "cancer", source: "American Cancer Society",
   },
   {
-    minutes: 4320,
-    label: "72 hours",
-    title: "Breathing gets easier",
-    description:
-      "Bronchial tubes relax and open up. Lung capacity begins to increase. You may notice it's easier to take a deep breath.",
-    category: "respiratory",
-    source: "American Cancer Society",
-  },
-  {
-    minutes: 5760,
-    label: "4 days",
-    title: "Acute withdrawal fading",
-    description:
-      "The worst of the physical withdrawal symptoms are subsiding. Energy levels are starting to recover. Most cravings now pass in under a minute.",
-    category: "neurological",
-    source: "National Institutes of Health",
-  },
-  {
-    minutes: 7200,
-    label: "5 days",
-    title: "Concentration returning",
-    description:
-      "The mental fog from nicotine withdrawal is lifting. Your ability to focus and concentrate is improving as your brain adjusts to functioning without nicotine.",
-    category: "neurological",
-    source: "National Institutes of Health",
-  },
-  {
-    minutes: 10080,
-    label: "1 week",
-    title: "Cravings become manageable",
-    description:
-      "Average craving episodes drop significantly. Most cravings now last under 3 minutes. Sleep quality begins to improve.",
-    category: "neurological",
-    source: "National Institutes of Health",
-  },
-  {
-    minutes: 15120,
-    label: "10 days",
-    title: "Energy levels rebounding",
-    description:
-      "Fatigue and low energy from withdrawal are largely behind you. Physical stamina is noticeably better. Mood swings are leveling out.",
-    category: "metabolic",
-    source: "National Institutes of Health",
-  },
-  {
-    minutes: 20160,
-    label: "2 weeks",
-    title: "Circulation measurably improves",
-    description:
-      "Blood flow throughout your body has significantly improved. Walking and physical activity become noticeably easier.",
-    category: "cardiovascular",
-    source: "American Heart Association",
-  },
-  {
-    minutes: 30240,
-    label: "3 weeks",
-    title: "Brain receptors normalize",
-    description:
-      "Acetylcholine receptor count in the brain returns to that of a non-smoker. The neurological dependence on nicotine weakens substantially.",
-    category: "neurological",
-    source: "National Institutes of Health",
-  },
-  {
-    minutes: 43200,
-    label: "1 month",
-    title: "Lung cilia regrow",
-    description:
-      "The tiny hair-like structures in your lungs begin to regenerate. This improves mucus clearance and reduces your risk of infection.",
-    category: "respiratory",
-    source: "American Cancer Society",
-  },
-  {
-    minutes: 129600,
-    label: "3 months",
-    title: "Lung function increases",
-    description:
-      "Circulation continues to improve. Lung function may increase by up to 30%. Exercise tolerance is significantly better.",
-    category: "respiratory",
-    source: "American Heart Association",
-  },
-  {
-    minutes: 259200,
-    label: "6 months",
-    title: "Coughing decreases",
-    description:
-      "Significant decrease in coughing and shortness of breath. Airway inflammation is substantially reduced. Stress levels have measurably decreased.",
-    category: "respiratory",
-    source: "American Cancer Society",
-  },
-  {
-    minutes: 388800,
-    label: "9 months",
-    title: "Lungs significantly healed",
-    description:
-      "Lung cilia have substantially regrown. Your lungs are dramatically better at clearing mucus, fighting infection, and absorbing oxygen.",
-    category: "respiratory",
-    source: "American Cancer Society",
-  },
-  {
-    minutes: 525600,
-    label: "1 year",
-    title: "Heart disease risk halved",
-    description:
-      "Your risk of coronary heart disease has dropped to about half that of a smoker. This is a major cardiovascular milestone.",
-    category: "cardiovascular",
-    source: "World Health Organization",
-  },
-  {
-    minutes: 1051200,
-    label: "2 years",
-    title: "Heart attack risk near-normal",
-    description:
-      "Your risk of heart attack has dropped to near-normal levels. Your blood vessels and heart are substantially healthier.",
-    category: "cardiovascular",
-    source: "American Heart Association",
-  },
-  {
-    minutes: 2628000,
-    label: "5 years",
-    title: "Stroke risk equalized",
-    description:
-      "Your risk of stroke has fallen to that of a non-smoker. Risk of mouth, throat, and esophageal cancer has been cut in half.",
-    category: "cancer",
-    source: "World Health Organization",
-  },
-  {
-    minutes: 5256000,
-    label: "10 years",
-    title: "Lung cancer risk halved",
-    description:
-      "Your risk of dying from lung cancer drops to about half that of a current smoker. Risk of bladder, kidney, and pancreatic cancer also decreases.",
-    category: "cancer",
-    source: "American Cancer Society",
-  },
-  {
-    minutes: 7884000,
-    label: "15 years",
-    title: "Heart disease risk eliminated",
-    description:
-      "Your risk of coronary heart disease is now equal to that of someone who has never smoked. Your heart has fully recovered.",
-    category: "cardiovascular",
-    source: "World Health Organization",
+    minutes: 7884000, label: "15 years", title: "Heart disease risk like a non-smoker's", smokeOnly: true,
+    description: "Your risk of coronary heart disease is now close to that of someone who never smoked.",
+    category: "cardiovascular", source: "American Cancer Society",
   },
 ];
+
+const nicotineOnly = milestones.filter(m => !m.smokeOnly);
+
+/** Same array instance every call, so it is safe in React dependency lists. */
+export function milestonesFor(smoked: boolean): Milestone[] {
+  return smoked ? milestones : nicotineOnly;
+}

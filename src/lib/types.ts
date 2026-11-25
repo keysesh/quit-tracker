@@ -5,6 +5,8 @@ export interface Milestone {
   description: string;
   category: "cardiovascular" | "respiratory" | "neurological" | "cancer" | "metabolic";
   source: string;
+  /** Only applies to smoked tobacco (carbon monoxide, lungs, smoking-disease risk). */
+  smokeOnly?: boolean;
 }
 
 export interface Craving {
@@ -45,15 +47,23 @@ export interface SymptomLog {
   severity: number;
 }
 
+import type { Product } from './products';
+
 export interface QuitProfile {
   /** When the journey started (first quit). The live timer counts from the last slip after this. */
   quitDate: string;
+  /** What they used. Field names below say "bowls"/"pouch" for storage compatibility; they mean units/containers. */
+  product: Product;
   bowlsPerDay: number;
   costPerPouch: number;
   bowlsPerPouch: number;
+  /** Minutes one unit took out of the day (feeds "time back"). */
+  minutesPerUnit: number;
   cravings: Craving[];
   relapses: Relapse[];
   symptoms: SymptomLog[];
+  /** ISO time of the last exported backup. */
+  lastBackup?: string;
 }
 
 // ── Granular capture vocabularies ──────────────────────────────
